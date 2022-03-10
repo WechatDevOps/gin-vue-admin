@@ -1,0 +1,372 @@
+<template>
+  <div>
+    <div class="gva-search-box">
+      <el-form :inline="true" :model="searchInfo" class="demo-form-inline">
+        <el-form-item label="会话ID">
+          <el-input v-model="searchInfo.sessionId" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="运维用户ID">
+          <el-input v-model="searchInfo.ywid" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="实例ID">
+          <el-input v-model="searchInfo.insId" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="实例名称">
+          <el-input v-model="searchInfo.insName" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="运维实例IP">
+          <el-input v-model="searchInfo.ywIp" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="登录源IP">
+          <el-input v-model="searchInfo.srcIp" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="登录源端口">
+          <el-input v-model="searchInfo.srcPort" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="添加时间">
+          <el-input v-model="searchInfo.insertTime" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="更新时间">
+          <el-input v-model="searchInfo.updateTime" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item label="登录状态">
+          <el-input v-model="searchInfo.loginType" placeholder="搜索条件" />
+        </el-form-item>
+        <el-form-item>
+          <el-button size="small" type="primary" icon="search" @click="onSubmit">查询</el-button>
+          <el-button size="small" icon="refresh" @click="onReset">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+    <div class="gva-table-box">
+        <div class="gva-btn-list">
+            <el-button size="small" type="primary" icon="plus" @click="openDialog">新增</el-button>
+            <el-popover v-model:visible="deleteVisible" placement="top" width="160">
+            <p>确定要删除吗？</p>
+            <div style="text-align: right; margin-top: 8px;">
+                <el-button size="small" type="text" @click="deleteVisible = false">取消</el-button>
+                <el-button size="small" type="primary" @click="onDelete">确定</el-button>
+            </div>
+            <template #reference>
+                <el-button icon="delete" size="small" style="margin-left: 10px;" :disabled="!multipleSelection.length">删除</el-button>
+            </template>
+            </el-popover>
+        </div>
+        <el-table
+        ref="multipleTable"
+        style="width: 100%"
+        tooltip-effect="dark"
+        :data="tableData"
+        row-key="ID"
+        @selection-change="handleSelectionChange"
+        >
+        <el-table-column type="selection" width="55" />
+        <el-table-column align="left" label="日期" width="180">
+            <template #default="scope">{{ formatDate(scope.row.CreatedAt) }}</template>
+        </el-table-column>
+        <el-table-column align="left" label="会话ID" prop="sessionId" width="120" />
+        <el-table-column align="left" label="运维用户ID" prop="ywid" width="120" />
+        <el-table-column align="left" label="实例ID" prop="insId" width="120" />
+        <el-table-column align="left" label="实例名称" prop="insName" width="120" />
+        <el-table-column align="left" label="运维实例IP" prop="ywIp" width="120" />
+        <el-table-column align="left" label="登录源IP" prop="srcIp" width="120" />
+        <el-table-column align="left" label="登录源端口" prop="srcPort" width="120" />
+        <el-table-column align="left" label="添加时间" prop="insertTime" width="120" />
+        <el-table-column align="left" label="更新时间" prop="updateTime" width="120" />
+        <el-table-column align="left" label="登录状态" prop="loginType" width="120">
+            <template #default="scope">
+            {{ filterDict(scope.row.loginType,LoginTypeOptions) }}
+            </template>
+        </el-table-column>
+        <el-table-column align="left" label="回放链接" prop="replayUrl" width="120" />
+        <el-table-column align="left" label="按钮组">
+            <template #default="scope">
+            <el-button type="text" icon="edit" size="small" class="table-button" @click="updateYwLoginLogFunc(scope.row)">变更</el-button>
+            <el-button type="text" icon="delete" size="small" @click="deleteRow(scope.row)">删除</el-button>
+            </template>
+        </el-table-column>
+        </el-table>
+        <div class="gva-pagination">
+            <el-pagination
+            layout="total, sizes, prev, pager, next, jumper"
+            :current-page="page"
+            :page-size="pageSize"
+            :page-sizes="[10, 30, 50, 100]"
+            :total="total"
+            @current-change="handleCurrentChange"
+            @size-change="handleSizeChange"
+            />
+        </div>
+    </div>
+    <el-dialog v-model="dialogFormVisible" :before-close="closeDialog" title="弹窗操作">
+      <el-form :model="formData" label-position="right" label-width="80px">
+        <el-form-item label="会话ID:">
+          <el-input v-model="formData.sessionId" clearable placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="运维用户ID:">
+          <el-input v-model.number="formData.ywid" clearable placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="实例ID:">
+          <el-input v-model="formData.insId" clearable placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="实例名称:">
+          <el-input v-model="formData.insName" clearable placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="运维实例IP:">
+          <el-input v-model="formData.ywIp" clearable placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="登录源IP:">
+          <el-input v-model="formData.srcIp" clearable placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="登录源端口:">
+          <el-input v-model.number="formData.srcPort" clearable placeholder="请输入" />
+        </el-form-item>
+        <el-form-item label="添加时间:">
+          <el-date-picker v-model="formData.insertTime" type="date" style="width:100%" placeholder="选择日期" clearable />
+        </el-form-item>
+        <el-form-item label="更新时间:">
+          <el-date-picker v-model="formData.updateTime" type="date" style="width:100%" placeholder="选择日期" clearable />
+        </el-form-item>
+        <el-form-item label="登录状态:">
+          <el-select v-model="formData.loginType" placeholder="请选择" style="width:100%" clearable>
+            <el-option v-for="(item,key) in LoginTypeOptions" :key="key" :label="item.label" :value="item.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="回放链接:">
+          <el-input v-model="formData.replayUrl" clearable placeholder="请输入" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button size="small" @click="closeDialog">取 消</el-button>
+          <el-button size="small" type="primary" @click="enterDialog">确 定</el-button>
+        </div>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+export default {
+  name: 'YwLoginLog'
+}
+</script>
+
+<script setup>
+import {
+  createYwLoginLog,
+  deleteYwLoginLog,
+  deleteYwLoginLogByIds,
+  updateYwLoginLog,
+  findYwLoginLog,
+  getYwLoginLogList
+} from '@/api/ywLoginLog'
+
+// 全量引入格式化工具 请按需保留
+import { getDictFunc, formatDate, formatBoolean, filterDict } from '@/utils/format'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { ref } from 'vue'
+
+// 自动化生成的字典（可能为空）以及字段
+const LoginTypeOptions = ref([])
+const formData = ref({
+        sessionId: '',
+        ywid: 0,
+        insId: '',
+        insName: '',
+        ywIp: '',
+        srcIp: '',
+        srcPort: 0,
+        insertTime: new Date(),
+        updateTime: new Date(),
+        loginType: undefined,
+        replayUrl: '',
+        })
+
+// =========== 表格控制部分 ===========
+const page = ref(1)
+const total = ref(0)
+const pageSize = ref(10)
+const tableData = ref([])
+const searchInfo = ref({})
+
+// 重置
+const onReset = () => {
+  searchInfo.value = {}
+}
+
+// 搜索
+const onSubmit = () => {
+  page.value = 1
+  pageSize.value = 10
+  getTableData()
+}
+
+// 分页
+const handleSizeChange = (val) => {
+  pageSize.value = val
+  getTableData()
+}
+
+// 修改页面容量
+const handleCurrentChange = (val) => {
+  page.value = val
+  getTableData()
+}
+
+// 查询
+const getTableData = async() => {
+  const table = await getYwLoginLogList({ page: page.value, pageSize: pageSize.value, ...searchInfo.value })
+  if (table.code === 0) {
+    tableData.value = table.data.list
+    total.value = table.data.total
+    page.value = table.data.page
+    pageSize.value = table.data.pageSize
+  }
+}
+
+getTableData()
+
+// ============== 表格控制部分结束 ===============
+
+// 获取需要的字典 可能为空 按需保留
+const setOptions = async () =>{
+    LoginTypeOptions.value = await getDictFunc('LoginType')
+}
+
+// 获取需要的字典 可能为空 按需保留
+setOptions()
+
+
+// 多选数据
+const multipleSelection = ref([])
+// 多选
+const handleSelectionChange = (val) => {
+    multipleSelection.value = val
+}
+
+// 删除行
+const deleteRow = (row) => {
+    ElMessageBox.confirm('确定要删除吗?', '提示', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+    }).then(() => {
+            deleteYwLoginLogFunc(row)
+        })
+    }
+
+
+// 批量删除控制标记
+const deleteVisible = ref(false)
+
+// 多选删除
+const onDelete = async() => {
+      const ids = []
+      if (multipleSelection.value.length === 0) {
+        ElMessage({
+          type: 'warning',
+          message: '请选择要删除的数据'
+        })
+        return
+      }
+      multipleSelection.value &&
+        multipleSelection.value.map(item => {
+          ids.push(item.ID)
+        })
+      const res = await deleteYwLoginLogByIds({ ids })
+      if (res.code === 0) {
+        ElMessage({
+          type: 'success',
+          message: '删除成功'
+        })
+        if (tableData.value.length === ids.length && page.value > 1) {
+          page.value--
+        }
+        deleteVisible.value = false
+        getTableData()
+      }
+    }
+
+// 行为控制标记（弹窗内部需要增还是改）
+const type = ref('')
+
+// 更新行
+const updateYwLoginLogFunc = async(row) => {
+    const res = await findYwLoginLog({ ID: row.ID })
+    type.value = 'update'
+    if (res.code === 0) {
+        formData.value = res.data.reywLoginLog
+        dialogFormVisible.value = true
+    }
+}
+
+
+// 删除行
+const deleteYwLoginLogFunc = async (row) => {
+    const res = await deleteYwLoginLog({ ID: row.ID })
+    if (res.code === 0) {
+        ElMessage({
+                type: 'success',
+                message: '删除成功'
+            })
+            if (tableData.value.length === 1 && page.value > 1) {
+            page.value--
+        }
+        getTableData()
+    }
+}
+
+// 弹窗控制标记
+const dialogFormVisible = ref(false)
+
+// 打开弹窗
+const openDialog = () => {
+    type.value = 'create'
+    dialogFormVisible.value = true
+}
+
+// 关闭弹窗
+const closeDialog = () => {
+    dialogFormVisible.value = false
+    formData.value = {
+        sessionId: '',
+        ywid: 0,
+        insId: '',
+        insName: '',
+        ywIp: '',
+        srcIp: '',
+        srcPort: 0,
+        insertTime: new Date(),
+        updateTime: new Date(),
+        loginType: undefined,
+        replayUrl: '',
+        }
+}
+// 弹窗确定
+const enterDialog = async () => {
+      let res
+      switch (type.value) {
+        case 'create':
+          res = await createYwLoginLog(formData.value)
+          break
+        case 'update':
+          res = await updateYwLoginLog(formData.value)
+          break
+        default:
+          res = await createYwLoginLog(formData.value)
+          break
+      }
+      if (res.code === 0) {
+        ElMessage({
+          type: 'success',
+          message: '创建/更改成功'
+        })
+        closeDialog()
+        getTableData()
+      }
+}
+</script>
+
+<style>
+</style>
